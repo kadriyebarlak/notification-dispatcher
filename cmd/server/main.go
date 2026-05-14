@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
+	"github.com/kadriyebarlak/notification-dispatcher/internal/notifier"
 )
 
 func main() {
-	fmt.Println("notification dispatcher starting...")
+	var _ domain.Notifier = notifier.EmailNotifier{}
+	var _ domain.Notifier = notifier.WebhookNotifier{}
 
-	var s domain.EventStatus = "something_random"
-	fmt.Println(s)
+	fmt.Println("notification dispatcher starting...")
 }
