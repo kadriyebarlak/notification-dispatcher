@@ -38,6 +38,8 @@ func main() {
 
 		fmt.Println("unknown error:", err)
 	}
+
+	runDemo()
 }
 
 func simulateDispatch(eventID string) error {
