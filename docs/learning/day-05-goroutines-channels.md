@@ -301,7 +301,8 @@ The Go scheduler multiplexes goroutines onto a small number of OS threads automa
 **How goroutines communicate:**
 Through channels — typed pipes that transfer ownership of data.
 This avoids shared memory and eliminates most locking bugs.
-Go's principle: communicate by sharing memory, not share memory by communicating.
+Go's principle: do not communicate by sharing memory, share memory by communicating.
+in turkish: Ortak veriyi paylaşarak konuşma; mesaj göndererek veriyi aktar.
 
 **Buffered vs unbuffered channels:**
 Unbuffered: sender and receiver must meet — synchronous handoff at the point of transfer.
