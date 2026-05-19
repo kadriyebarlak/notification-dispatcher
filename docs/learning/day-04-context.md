@@ -27,7 +27,8 @@ If every function in the chain respects the context, they all stop immediately. 
 
 > **Türkçe özet:** Kullanıcı bağlantıyı kestiğinde ya da timeout dolduğunda, context iptal edilir.
 > Her fonksiyon bu context'i dinliyorsa, hepsi durur.
-> Spring bunu senin yerine halleder, Go'da bunu sen explicit olarak yaparsın — ama tam olarak ne zaman ve nerede durduğunu bilirsin.
+> Kullanıcı bağlantıyı kestiğinde Go’daki HTTP request context’i otomatik iptal edilir. Eğer handler, service, DB call ve external API call bu context’i kullanıyor ve dinliyorsa, işlem zinciri durabilir.
+> Spring’de request lifecycle framework tarafından yönetilir, ama çalışan DB query veya external API call’ın otomatik duracağı garanti değildir. Go’da cancellation daha explicit görünür: context’i zincir boyunca sen geçirirsin ve fonksiyonlar buna saygı duymalıdır.
 
 ---
 
