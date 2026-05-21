@@ -12,17 +12,31 @@ type CreateEventRequest struct {
 	Payload string `json:"payload"`
 }
 
+func (req CreateEventRequest) validate() []string {
+	var errs []string
+	if req.Type == "" {
+		errs = append(errs, "type is required")
+	}
+	if req.Payload == "" {
+		errs = append(errs, "payload is required")
+	}
+	return errs
+}
+
 func (h EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	var req CreateEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.Type == "" {
-		http.Error(w, "type is required", http.StatusBadRequest)
+	if errs := req.validate(); len(errs) > 0 {
+		writeJSON(w, http.StatusBadRequest, map[string][]string{
+			"errors": errs,
+		})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
+
+	writeJSON(w, http.StatusAccepted, map[string]string{
+		"status": "accepted",
+	})
 }
