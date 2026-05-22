@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
@@ -19,6 +20,8 @@ func main() {
 
 	eventHandler := handler.EventHandler{}
 	r := chi.NewRouter()
+	r.Use(handler.LoggingMiddleware)
+	r.Use(handler.TimeoutMiddleware(5 * time.Second))
 	r.Post("/events", eventHandler.CreateEvent)
 
 	fmt.Println("server listening on :8080")
