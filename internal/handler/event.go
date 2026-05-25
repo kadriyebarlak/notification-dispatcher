@@ -1,11 +1,22 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
 
-type EventHandler struct{}
+type EventService interface {
+	Create(ctx context.Context, eventType, payload string) error
+}
+
+type EventHandler struct {
+	service EventService
+}
+
+func NewEventHandler(service EventService) *EventHandler {
+	return &EventHandler{service: service}
+}
 
 type CreateEventRequest struct {
 	Type    string `json:"type"`
@@ -23,7 +34,7 @@ func (req CreateEventRequest) validate() []string {
 	return errs
 }
 
-func (h EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
+func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	var req CreateEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -33,6 +44,11 @@ func (h EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string][]string{
 			"errors": errs,
 		})
+		return
+	}
+
+	if err := h.service.Create(r.Context(), req.Type, req.Payload); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create event")
 		return
 	}
 
