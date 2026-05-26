@@ -23,3 +23,7 @@ func (s *EventService) Create(ctx context.Context, eventType, payload string) er
 	}
 	return s.repo.Insert(ctx, event)
 }
+
+func (s *EventService) ListByStatus(ctx context.Context, status string) ([]domain.NotificationEvent, error) {
+	return s.repo.FindByStatus(ctx, domain.EventStatus(status))
+}

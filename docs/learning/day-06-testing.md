@@ -48,6 +48,7 @@ t.Fatalf("got %v, want %v", got, want)  // marks failed, stops immediately
 go test ./...           # run all tests in the project
 go test ./internal/...  # run tests in a specific path
 go test -v ./...        # verbose — shows each test name and result
+go test -race ./...     # run with the race detector.-race Go’nun data race detector.aynı veriye aynı anda birden fazla goroutine erişirse ve bu erişimlerden en az biri write ise, Go bunu yakalayabilsin diye
 ```
 
 No Maven, no Gradle, no plugin configuration.

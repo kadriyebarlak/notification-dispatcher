@@ -179,6 +179,9 @@ docker run --name notification-db \
   -p 5432:5432 \
   -d postgres:16
 docker exec -it notification-db psql -U notify -d notification_dispatcher -c "\dt"
+docker exec -it notification-db psql -U notify \
+  -d notification_dispatcher \
+  -c "SELECT * FROM events;"
 ```
 
 Expected output:

@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+
+	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
 )
 
 type EventService interface {
 	Create(ctx context.Context, eventType, payload string) error
+	ListByStatus(ctx context.Context, status string) ([]domain.NotificationEvent, error)
 }
 
 type EventHandler struct {
@@ -55,4 +58,19 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]string{
 		"status": "accepted",
 	})
+}
+
+func (h *EventHandler) ListEvents(w http.ResponseWriter, r *http.Request) {
+	status := r.URL.Query().Get("status")
+	if status == "" {
+		status = string(domain.StatusPending)
+	}
+
+	events, err := h.service.ListByStatus(r.Context(), status)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list events")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, events)
 }

@@ -20,3 +20,9 @@ migrate-down:
 
 migrate-status:
 	goose -dir migrations postgres "$(DB_URL)" status
+
+docker-up:
+	docker-compose up -d
+
+docker-down:
+	docker-compose down

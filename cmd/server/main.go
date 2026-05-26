@@ -43,6 +43,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(handler.LoggingMiddleware)
 	r.Use(handler.TimeoutMiddleware(5 * time.Second))
+	r.Get("/events", eventHandler.ListEvents)
 	r.Post("/events", eventHandler.CreateEvent)
 
 	fmt.Println("server listening on :8080")
