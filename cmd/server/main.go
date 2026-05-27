@@ -17,8 +17,8 @@ import (
 )
 
 func main() {
-	var _ domain.Notifier = notifier.EmailNotifier{}
-	var _ domain.Notifier = notifier.WebhookNotifier{}
+	var _ domain.Notifier = (*notifier.FakeEmailNotifier)(nil)
+	var _ domain.Notifier = (*notifier.FakeWebhookNotifier)(nil)
 
 	fmt.Println("notification dispatcher starting...")
 
@@ -39,6 +39,12 @@ func main() {
 	eventRepository := repository.NewPostgresEventRepository(pool)
 	eventService := service.NewEventService(eventRepository)
 	eventHandler := handler.NewEventHandler(eventService)
+
+	registry := notifier.NewNotifierRegistry(map[domain.EventType]domain.Notifier{
+		domain.EventTypeEmail:   &notifier.FakeEmailNotifier{},
+		domain.EventTypeWebhook: &notifier.FakeWebhookNotifier{},
+	})
+	_ = registry // temporary — dispatcher will use it on Day 17
 
 	r := chi.NewRouter()
 	r.Use(handler.LoggingMiddleware)

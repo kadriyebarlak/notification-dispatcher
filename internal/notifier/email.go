@@ -2,14 +2,22 @@ package notifier
 
 import (
 	"context"
-	"fmt"
+	"log"
 
 	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
 )
 
-type EmailNotifier struct{}
+type FakeEmailNotifier struct {
+	ShouldFail bool
+}
 
-func (e EmailNotifier) Send(ctx context.Context, event domain.NotificationEvent) error {
-	fmt.Println("sending email notification:", event.ID)
+func (n *FakeEmailNotifier) Send(ctx context.Context, event domain.NotificationEvent) error {
+	if n.ShouldFail {
+		return &domain.NotifyError{
+			EventID: event.ID,
+			Reason:  "simulated email failure",
+		}
+	}
+	log.Printf("email sent for event %s type %s", event.ID, event.Type)
 	return nil
 }
