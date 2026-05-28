@@ -9,11 +9,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/kadriyebarlak/notification-dispatcher/internal/dispatcher"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/handler"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/notifier"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/repository"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/service"
+	"github.com/kadriyebarlak/notification-dispatcher/internal/worker"
 )
 
 func main() {
@@ -44,7 +46,11 @@ func main() {
 		domain.EventTypeEmail:   &notifier.FakeEmailNotifier{},
 		domain.EventTypeWebhook: &notifier.FakeWebhookNotifier{},
 	})
-	_ = registry // temporary — dispatcher will use it on Day 17
+	workerPool := worker.NewWorkerPool(3)
+	disp := dispatcher.NewDispatcher(eventRepository, workerPool, registry, 60*time.Second)
+
+	workerPool.Start(ctx, disp.Process)
+	disp.Start(ctx)
 
 	r := chi.NewRouter()
 	r.Use(handler.LoggingMiddleware)

@@ -11,9 +11,10 @@ type NotificationEvent struct {
 type EventStatus string
 
 const (
-	StatusPending   EventStatus = "pending"
-	StatusDelivered EventStatus = "delivered"
-	StatusFailed    EventStatus = "failed"
+	StatusPending    EventStatus = "pending"
+	StatusProcessing EventStatus = "processing"
+	StatusDelivered  EventStatus = "delivered"
+	StatusFailed     EventStatus = "failed"
 )
 
 type EventType string
