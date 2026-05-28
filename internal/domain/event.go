@@ -15,6 +15,7 @@ const (
 	StatusProcessing EventStatus = "processing"
 	StatusDelivered  EventStatus = "delivered"
 	StatusFailed     EventStatus = "failed"
+	StatusDead       EventStatus = "dead"
 )
 
 type EventType string

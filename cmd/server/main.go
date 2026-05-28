@@ -43,11 +43,11 @@ func main() {
 	eventHandler := handler.NewEventHandler(eventService)
 
 	registry := notifier.NewNotifierRegistry(map[domain.EventType]domain.Notifier{
-		domain.EventTypeEmail:   &notifier.FakeEmailNotifier{},
+		domain.EventTypeEmail:   &notifier.FakeEmailNotifier{ShouldFail: true},
 		domain.EventTypeWebhook: &notifier.FakeWebhookNotifier{},
 	})
 	workerPool := worker.NewWorkerPool(3)
-	disp := dispatcher.NewDispatcher(eventRepository, workerPool, registry, 60*time.Second)
+	disp := dispatcher.NewDispatcher(eventRepository, workerPool, registry, 30*time.Second, 3)
 
 	workerPool.Start(ctx, disp.Process)
 	disp.Start(ctx)

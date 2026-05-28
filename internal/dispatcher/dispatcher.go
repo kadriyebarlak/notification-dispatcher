@@ -11,10 +11,11 @@ import (
 )
 
 type Dispatcher struct {
-	repo     domain.EventRepository
-	pool     *worker.WorkerPool
-	registry *notifier.NotifierRegistry
-	interval time.Duration
+	repo       domain.EventRepository
+	pool       *worker.WorkerPool
+	registry   *notifier.NotifierRegistry
+	interval   time.Duration
+	maxRetries int
 }
 
 func NewDispatcher(
@@ -22,12 +23,14 @@ func NewDispatcher(
 	pool *worker.WorkerPool,
 	registry *notifier.NotifierRegistry,
 	interval time.Duration,
+	maxRetries int,
 ) *Dispatcher {
 	return &Dispatcher{
-		repo:     repo,
-		pool:     pool,
-		registry: registry,
-		interval: interval,
+		repo:       repo,
+		pool:       pool,
+		registry:   registry,
+		interval:   interval,
+		maxRetries: maxRetries,
 	}
 }
 
@@ -48,7 +51,7 @@ func (d *Dispatcher) Start(ctx context.Context) {
 }
 
 func (d *Dispatcher) dispatch(ctx context.Context) {
-	events, err := d.repo.FindByStatus(ctx, domain.StatusPending)
+	events, err := d.repo.FindByStatuses(ctx, domain.StatusPending, domain.StatusFailed)
 	if err != nil {
 		log.Printf("dispatcher: failed to fetch events: %v", err)
 		return
@@ -66,14 +69,21 @@ func (d *Dispatcher) dispatch(ctx context.Context) {
 func (d *Dispatcher) Process(ctx context.Context, event domain.NotificationEvent) {
 	notifier, ok := d.registry.Get(event.Type)
 	if !ok {
-		log.Printf("dispatcher: no notifier for event type %s", event.Type)
-		d.repo.UpdateStatus(ctx, event.ID, domain.StatusFailed, event.RetryCount)
+		log.Printf("dispatcher: no notifier for type %s", event.Type)
+		d.repo.UpdateStatus(ctx, event.ID, domain.StatusDead, event.RetryCount)
 		return
 	}
 
 	if err := notifier.Send(ctx, event); err != nil {
-		log.Printf("dispatcher: failed to send event %s: %v", event.ID, err)
-		d.repo.UpdateStatus(ctx, event.ID, domain.StatusFailed, event.RetryCount)
+		log.Printf("dispatcher: failed to send %s (attempt %d): %v", event.ID, event.RetryCount+1, err)
+
+		if event.RetryCount+1 >= d.maxRetries {
+			d.repo.UpdateStatus(ctx, event.ID, domain.StatusDead, event.RetryCount+1)
+			log.Printf("dispatcher: event %s marked as dead after %d attempts", event.ID, d.maxRetries)
+			return
+		}
+
+		d.repo.UpdateStatus(ctx, event.ID, domain.StatusFailed, event.RetryCount+1)
 		return
 	}
 

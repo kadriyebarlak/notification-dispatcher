@@ -51,6 +51,37 @@ func (r *PostgresEventRepository) FindByStatus(ctx context.Context, status domai
 	return events, nil
 }
 
+func (r *PostgresEventRepository) FindByStatuses(ctx context.Context, statuses ...domain.EventStatus) ([]domain.NotificationEvent, error) {
+	statusValues := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		statusValues = append(statusValues, string(status))
+	}
+
+	rows, err := r.pool.Query(ctx,
+		"SELECT id, type, payload, status, retry_count FROM events WHERE status = ANY($1::text[])",
+		statusValues,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []domain.NotificationEvent
+	for rows.Next() {
+		var e domain.NotificationEvent
+		if err := rows.Scan(&e.ID, &e.Type, &e.Payload, &e.Status, &e.RetryCount); err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return events, nil
+}
+
 func (r *PostgresEventRepository) UpdateStatus(ctx context.Context, id string, status domain.EventStatus, retryCount int) error {
 	_, err := r.pool.Exec(ctx,
 		"UPDATE events SET status=$1, retry_count=$2 WHERE id=$3",
