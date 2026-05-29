@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/kadriyebarlak/notification-dispatcher/internal/config"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/dispatcher"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
 	"github.com/kadriyebarlak/notification-dispatcher/internal/handler"
@@ -25,14 +26,14 @@ func main() {
 	var _ domain.Notifier = (*notifier.FakeEmailNotifier)(nil)
 	var _ domain.Notifier = (*notifier.FakeWebhookNotifier)(nil)
 
+	cfg := config.LoadConfig()
+
 	fmt.Println("notification dispatcher starting...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	dbURL := "postgres://notify:notify@localhost:5432/notification_dispatcher?sslmode=disable"
-
-	pool, err := pgxpool.New(ctx, dbURL)
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,8 +50,8 @@ func main() {
 		domain.EventTypeEmail:   &notifier.FakeEmailNotifier{},
 		domain.EventTypeWebhook: &notifier.FakeWebhookNotifier{},
 	})
-	workerPool := worker.NewWorkerPool(3)
-	disp := dispatcher.NewDispatcher(eventRepository, workerPool, registry, 30*time.Second, 3)
+	workerPool := worker.NewWorkerPool(cfg.WorkerCount)
+	disp := dispatcher.NewDispatcher(eventRepository, workerPool, registry, cfg.DispatcherInterval, cfg.MaxRetries)
 
 	workerPool.Start(ctx, disp.Process)
 	disp.Start(ctx)
@@ -62,12 +63,12 @@ func main() {
 	r.Post("/events", eventHandler.CreateEvent)
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + cfg.Port,
 		Handler: r,
 	}
 	// start in a goroutine
 	go func() {
-		log.Println("server listening on :8080")
+		log.Println("server listening on " + cfg.Port)
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("server error:", err)
