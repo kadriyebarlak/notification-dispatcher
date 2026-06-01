@@ -20,6 +20,7 @@ Go's native goroutines and channels.
 notification-dispatcher/
 ├── cmd/server/          ← entry point
 ├── internal/
+│   ├── config/          ← environment-based configuration
 │   ├── domain/          ← core types and interfaces
 │   ├── handler/         ← HTTP handlers and middleware
 │   ├── service/         ← business logic
@@ -53,6 +54,12 @@ curl -X POST http://localhost:8080/events \
   -d '{"type":"email","payload":"hello world"}'
 ```
 
+### Response example
+
+```json
+{"status": "accepted"}
+```
+
 ## How to run
 
 ```bash
@@ -70,19 +77,25 @@ make run
 
 Configuration is loaded from environment variables with sensible local defaults.
 
-See `.env.example` for available values:
+See `.env.example` for all available values:
 
 ```env
 DATABASE_URL=postgres://notify:notify@localhost:5432/notification_dispatcher?sslmode=disable
-PORT=8080
+PORT=:8080
 WORKER_COUNT=3
 MAX_RETRIES=3
 DISPATCHER_INTERVAL=30s
 ```
 
+Override any value at runtime:
+
+```bash
+PORT=:9090 WORKER_COUNT=5 make run
+```
+
 ## Event lifecycle
 PENDING → PROCESSING → DELIVERED
-↘ FAILED (retried up to 3 times)
+↘ FAILED (retried up to MAX_RETRIES times)
 ↘ DEAD (no more retries)
 
 ## Tech stack
@@ -96,17 +109,28 @@ PENDING → PROCESSING → DELIVERED
 
 ## Design decisions
 
-- No ORM — plain SQL with pgx for full visibility
-- Manual dependency injection — no framework, wired in main.go
-- Interface-based layers — every layer testable in isolation
-- Worker pool backed by buffered channel — HTTP and dispatch are decoupled
-- Graceful shutdown — SIGINT/SIGTERM drains in-flight work before exit
+- **No ORM** — plain SQL with pgx for full visibility into every query
+- **Manual dependency injection** — no framework, all wiring explicit in main.go
+- **Interface-based layers** — every layer is testable in isolation with fake implementations
+- **Worker pool backed by buffered channel** — HTTP handling and event dispatch are fully decoupled
+- **Graceful shutdown** — SIGINT/SIGTERM stops new work and drains in-flight jobs before exit
+- **Environment-based config** — no hardcoded values, 12-factor app style
 
 ## Known limitations
 
 - Notifiers are fake implementations — no real email or webhook delivery
-- Single instance only — multi-instance requires SELECT FOR UPDATE SKIP LOCKED
-- Worker pool may skip buffered jobs on shutdown — drain-to-empty pattern is the fix
+- Single instance only — multi-instance scaling requires `SELECT FOR UPDATE SKIP LOCKED`
+- Worker pool `select` pattern may skip buffered jobs on shutdown — drain-to-empty `range` pattern is the production fix
+
+## Running tests
+
+```bash
+# run all tests
+go test ./...
+
+# run with race detector
+go test -race ./...
+```
 
 ## Status
 
