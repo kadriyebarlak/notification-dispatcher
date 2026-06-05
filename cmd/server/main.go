@@ -61,6 +61,8 @@ func main() {
 	r.Use(handler.TimeoutMiddleware(5 * time.Second))
 	r.Get("/events", eventHandler.ListEvents)
 	r.Post("/events", eventHandler.CreateEvent)
+	r.Get("/health", handler.HealthHandler)
+	r.Get("/ready", handler.NewReadinessHandler(pool).Ready)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
