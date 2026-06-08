@@ -35,3 +35,12 @@ docker-run:
 		-e DATABASE_URL=postgres://notify:notify@host.docker.internal:5432/notification_dispatcher?sslmode=disable \
 		-p 8080:8080 \
 		notification-dispatcher
+
+lint:
+	golangci-lint run ./...
+
+vet:
+	go vet ./...
+
+fmt:
+	gofmt -w .

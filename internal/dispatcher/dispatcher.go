@@ -70,7 +70,9 @@ func (d *Dispatcher) Process(ctx context.Context, event domain.NotificationEvent
 	notifier, ok := d.registry.Get(event.Type)
 	if !ok {
 		log.Printf("dispatcher: no notifier for type %s", event.Type)
-		d.repo.UpdateStatus(ctx, event.ID, domain.StatusDead, event.RetryCount)
+		if err := d.repo.UpdateStatus(ctx, event.ID, domain.StatusDead, event.RetryCount); err != nil {
+			log.Printf("dispatcher: failed to update status to dead for event %s: %v", event.ID, err)
+		}
 		return
 	}
 
@@ -78,14 +80,21 @@ func (d *Dispatcher) Process(ctx context.Context, event domain.NotificationEvent
 		log.Printf("dispatcher: failed to send %s (attempt %d): %v", event.ID, event.RetryCount+1, err)
 
 		if event.RetryCount+1 >= d.maxRetries {
-			d.repo.UpdateStatus(ctx, event.ID, domain.StatusDead, event.RetryCount+1)
+			if err := d.repo.UpdateStatus(ctx, event.ID, domain.StatusDead, event.RetryCount+1); err != nil {
+				log.Printf("dispatcher: failed to update status to dead for event %s: %v", event.ID, err)
+				return
+			}
 			log.Printf("dispatcher: event %s marked as dead after %d attempts", event.ID, d.maxRetries)
 			return
 		}
 
-		d.repo.UpdateStatus(ctx, event.ID, domain.StatusFailed, event.RetryCount+1)
+		if err := d.repo.UpdateStatus(ctx, event.ID, domain.StatusFailed, event.RetryCount+1); err != nil {
+			log.Printf("dispatcher: failed to update status to failed for event %s: %v", event.ID, err)
+		}
 		return
 	}
 
-	d.repo.UpdateStatus(ctx, event.ID, domain.StatusDelivered, event.RetryCount)
+	if err := d.repo.UpdateStatus(ctx, event.ID, domain.StatusDelivered, event.RetryCount); err != nil {
+		log.Printf("dispatcher: failed to update status to delivered for event %s: %v", event.ID, err)
+	}
 }
