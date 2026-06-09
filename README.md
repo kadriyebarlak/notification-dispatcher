@@ -33,32 +33,89 @@ notification-dispatcher/
 ```
 
 ## Architecture
+
+```
 HTTP Request → EventHandler → EventService → EventRepository (PostgreSQL)
-↑
+                                                      ↑
 Dispatcher (polls every 30s) → WorkerPool → Process → NotifierRegistry
-↓
-FakeEmailNotifier / FakeWebhookNotifier
+                                                      ↓
+                                          FakeEmailNotifier / FakeWebhookNotifier
+```
 
 ## API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /events | Submit a notification event |
-| GET | /events?status=pending | List events by status |
+### POST /events
 
-### Request example
+Submit a notification event for async dispatch.
 
-```bash
-curl -X POST http://localhost:8080/events \
-  -H "Content-Type: application/json" \
-  -d '{"type":"email","payload":"hello world"}'
+**Request:**
+```json
+{
+  "type": "email",
+  "payload": "your notification content"
+}
 ```
 
-### Response example
-
+**Response — 202 Accepted:**
 ```json
 {"status": "accepted"}
 ```
+
+**Response — 400 Bad Request:**
+```json
+{"errors": ["type is required", "payload is required"]}
+```
+
+**Supported event types:** `email`, `webhook`
+
+---
+
+### GET /events
+
+List events filtered by status.
+
+**Query params:** `status` — one of `pending`, `processing`, `delivered`, `failed`, `dead` (default: `pending`)
+
+**Example:**
+```bash
+curl http://localhost:8080/events?status=delivered
+```
+
+**Response — 200 OK:**
+```json
+[
+  {
+    "ID": "evt-1234567890",
+    "Type": "email",
+    "Payload": "your content",
+    "Status": "delivered",
+    "RetryCount": 0
+  }
+]
+```
+
+---
+
+### GET /health
+
+Liveness probe. Returns 200 if the process is running.
+
+```json
+{"status": "ok"}
+```
+
+---
+
+### GET /ready
+
+Readiness probe. Returns 200 if the service and database are healthy, 503 otherwise.
+
+```json
+{"status": "ok"}
+{"status": "unavailable", "reason": "database unreachable"}
+```
+
+---
 
 ## How to run
 
@@ -71,6 +128,25 @@ make migrate-up
 
 # start the server
 make run
+```
+
+## How to develop
+
+```bash
+# run all tests
+make test
+
+# run with race detector
+make test-race
+
+# lint
+make lint
+
+# format
+make fmt
+
+# build Docker image
+make docker-build
 ```
 
 ## Configuration
@@ -94,9 +170,12 @@ PORT=:9090 WORKER_COUNT=5 make run
 ```
 
 ## Event lifecycle
+
+```
 PENDING → PROCESSING → DELIVERED
-↘ FAILED (retried up to MAX_RETRIES times)
-↘ DEAD (no more retries)
+                     ↘ FAILED (retried up to MAX_RETRIES times)
+                              ↘ DEAD (no more retries)
+```
 
 ## Tech stack
 
@@ -116,25 +195,26 @@ PENDING → PROCESSING → DELIVERED
 - **Graceful shutdown** — SIGINT/SIGTERM stops new work and drains in-flight jobs before exit
 - **Environment-based config** — no hardcoded values, 12-factor app style
 
+## Java to Go — what I learned building this
+
+I built this service while transitioning from Java/Spring Boot to Go.
+The same service in Spring Boot would use:
+
+| Spring Boot | Go |
+|---|---|
+| `@RestController` + `@Autowired` | plain `http.Handler` + manual constructor injection |
+| `ThreadPoolExecutor` + `@Async` | goroutines + buffered channels |
+| Spring Batch scheduled jobs | `time.NewTicker` + context cancellation |
+| Flyway migrations | goose |
+| Fat JAR (~250MB Docker image) | static binary (34MB Docker image) |
+
+The most important mindset shift: Go has no magic.
+Every dependency is wired explicitly. Every error is handled explicitly.
+Every goroutine is started explicitly. This makes the code more verbose
+but also more transparent — you can always see exactly what is happening and why.
+
 ## Known limitations
 
 - Notifiers are fake implementations — no real email or webhook delivery
 - Single instance only — multi-instance scaling requires `SELECT FOR UPDATE SKIP LOCKED`
 - Worker pool `select` pattern may skip buffered jobs on shutdown — drain-to-empty `range` pattern is the production fix
-
-## Running tests
-
-```bash
-# run all tests
-go test ./...
-
-# run with race detector
-go test -race ./...
-```
-
-## Status
-
-- Week 1 ✓ — Go fundamentals, project structure, domain types
-- Week 2 ✓ — HTTP API, middleware, PostgreSQL, service layer
-- Week 3 ✓ — Worker pool, dispatcher, retry logic, graceful shutdown
-- Week 4 🔄 — Tests, production readiness, GitHub polish
