@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/kadriyebarlak/notification-dispatcher/internal/domain"
 )
@@ -31,7 +32,10 @@ func (p *WorkerPool) Start(ctx context.Context, process func(ctx context.Context
 					if !ok {
 						return
 					}
-					process(ctx, event)
+					// use a fresh context for processing — not the shutdown ctx
+					processCtx, processCancel := context.WithTimeout(context.Background(), 30*time.Second)
+					process(processCtx, event)
+					processCancel()
 				case <-ctx.Done():
 					return
 				}
